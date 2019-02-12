@@ -1,0 +1,7 @@
+//Comentario
+/*
+	Comentario Largo
+*/
+identificador
+99
+9.0
