@@ -5,3 +5,6 @@
 identificador
 99
 9.0
+"Cadena"
+'cadena?'
+int
