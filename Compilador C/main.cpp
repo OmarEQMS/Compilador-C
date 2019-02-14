@@ -50,7 +50,7 @@ bool ValidarEstadoToken(string texto, int estado, int exitStatus) {
 				token = i;
 				if (tokens[i].token == "IDENTIFICADOR") { //Si es identificdor, busco si es palabra reservada
 					for (int j = 0; j < palabras_reservadas.size(); j++) {
-						if (texto == palabras_reservadas[j]) tokens[i].token = "PALABRA_RESERVADA";
+						if (texto == palabras_reservadas[j]) { token = 0; } //Palabra Reservada
 					}
 				}
 			}
