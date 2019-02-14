@@ -42,7 +42,7 @@ int* SiguienteEstado(int estadoActual, char caracter) {
 	return pilaEstados;
 }
 
-bool ValidarEstadoToken(string texto, int estado, int exitStatus, int columna, int linea) {
+bool ValidarEstadoToken(string texto, int estado, int exitStatus) {
 	int token = -1;
 	if (exitStatus == -1) {
 		for (int i = 0; i < tokens.size(); i++) {
@@ -55,27 +55,26 @@ bool ValidarEstadoToken(string texto, int estado, int exitStatus, int columna, i
 				}
 			}
 		}
-		if (token != -1) cout << tokens[token].token << "(" << linea << ", " << columna << "): " << texto << endl;
+		if (token != -1) cout << tokens[token].token << ": " << texto << endl;
 	} else if (exitStatus == -2) {
-		cout << "NO VALID : " << "(" << linea << ", " << columna << "): " << texto << endl;
+		cout << "NO VALID : " << texto << endl;
 	}
 	return (token!=-1);
 }
 
-void AutomataLexico(string texto, int index, int estado, int columna, int linea) {
+void AutomataLexico(string texto, int index, int estado) {
 	int* estados = SiguienteEstado(estado, programa[index]);
 	for (int k = 0; k < estados[0]; k++) {
 		if (index >= programa.length()-1) {	//Llegue al final, exitStatus es -1 y el estado es al que hubiera ido
-			ValidarEstadoToken(texto + programa[index], estados[k + 1], -1, columna, linea);
+			ValidarEstadoToken(texto + programa[index], estados[k + 1], -1);
 		} else if (estados[k + 1] < 0) {			//Si el estado es menor a 0, verifico estado final y comienzo desde ahi
-			if(ValidarEstadoToken(texto, estado, estados[k + 1], columna, linea))
-				AutomataLexico("", index, 0, columna, linea);
+			if(ValidarEstadoToken(texto, estado, estados[k + 1]))
+				AutomataLexico("", index, 0);
 		}else {										//Si no es menor a 0, me sigo moviendo
-			columna++; if (programa[index] == '\n') { linea++; columna = 0; } //Llevo el conteo de todo
 			if (estados[k + 1] == 0) {				//Si regreso a 0 vuelvo a comenzar
-				AutomataLexico("", index + 1, estados[k + 1], columna, linea);
+				AutomataLexico("", index + 1, estados[k + 1]);
 			} else {
-				AutomataLexico(texto + programa[index], index + 1, estados[k + 1], columna, linea);
+				AutomataLexico(texto + programa[index], index + 1, estados[k + 1]);
 			}
 		}
 	}
@@ -86,7 +85,7 @@ void main() {
 	ReadFileLexico();
 	ReadFileTokens();
 	ReadFilePalabrasReservadas();
-	AutomataLexico("", 0, 0, 0, 0);
+	AutomataLexico("", 0, 0);
 
 	system("pause");
 }
