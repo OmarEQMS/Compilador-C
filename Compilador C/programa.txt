@@ -1,0 +1,37 @@
+//Comentario
+/*
+	Este es un programa para obtener todas las combinaciones de 1234567890 que sumen 100
+*/
+
+void Combinations(int &numComb, int Sum, int actualTerm, int actualOp, int num, string pruebas){     
+	if (num < 10) {
+		switch (actualOp) {
+			case 0:  //Concatenation
+				actualTerm = actualTerm * 10 + num;
+				if (num < 9) {
+					Combinations(numComb, Sum, actualTerm, 0, num + 1, pruebas);
+				}
+				Combinations(numComb, Sum, actualTerm, 1, num, pruebas);
+				Combinations(numComb, Sum, actualTerm, 2, num, pruebas);
+				break;
+
+			case 1: // Plus
+				Sum += actualTerm;
+				pruebas += " + " + to_string(actualTerm);
+				Combinations(numComb, Sum, 0, 0, num + 1, pruebas);
+				break;
+
+			case 2: //Substract
+				Sum -= actualTerm;
+				pruebas += " - " + to_string(actualTerm);
+				Combinations(numComb, Sum, 0, 0, num + 1, pruebas);
+				break;
+		}
+	} else {
+		if (Sum == 100) {
+			numComb = numComb + 1;
+			cout << pruebas << endl;
+		}
+	}
+
+}  
