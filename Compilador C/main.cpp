@@ -5,20 +5,26 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <iomanip>
 using namespace std;
 
 void ReadFileTokens();
 void ReadFileLexico();
 void ReadFilePrograma();
 void ReadFilePalabrasReservadas();
+void PrintTableLines(int tokenS, int textoS, int lS, int cS);
+void PrintTable(int op);
+
 
 struct Token { public: string token; int estado; };
-
+struct simbol {public: string token; string texto; int line; int column;};
 vector<vector<vector<int>>> matrizLexico;
 vector<Token> tokens;
 vector<string> palabras_reservadas;
 string programa;
-
+int Line, Column;
+vector<simbol> AllTokens;
+vector<simbol> identificadores;
 int* SiguienteEstado(int estadoActual, char caracter) {
 	int carac = -1;
 	carac = (caracter != '\n') ? (caracter != '\t') ? caracter - 32 + 3 : 2 : 1;
@@ -56,6 +62,13 @@ bool ValidarEstadoToken(string texto, int estado, int exitStatus) {
 			}
 		}
 		if (token != -1) cout << tokens[token].token << ": " << texto << endl;
+		if(token!=-1){
+			int aux_column  = Column - texto.length()+1;
+			simbol simbol_aux = {tokens[token].token, texto, Line, aux_column};
+			AllTokens.push_back(simbol_aux);
+			if(simbol_aux.token == "IDENTIFICADOR")
+				identificadores.push_back(simbol_aux);
+		}
 	} else if (exitStatus == -2) {
 		cout << "NO VALID : " << texto << endl;
 	}
@@ -70,24 +83,36 @@ void AutomataLexico(string texto, int index, int estado) {
 		} else if (estados[k + 1] < 0) {			//Si el estado es menor a 0, verifico estado final y comienzo desde ahi
 			if(ValidarEstadoToken(texto, estado, estados[k + 1]))
 				AutomataLexico("", index, 0);
-		}else {										//Si no es menor a 0, me sigo moviendo
+		}else {
+			Column++;                               //Si no es menor a 0, me sigo moviendo									
 			if (estados[k + 1] == 0) {				//Si regreso a 0 vuelvo a comenzar
+				if(programa[index]=='\n'){
+					Line = Line + 1;
+					Column=0;
+				}
 				AutomataLexico("", index + 1, estados[k + 1]);
 			} else {
+				if(programa[index]=='\n'){
+					Line = Line + 1;
+					Column=0;
+				}
 				AutomataLexico(texto + programa[index], index + 1, estados[k + 1]);
 			}
 		}
 	}
 }
 
-void main() {
+int main() {
 	ReadFilePrograma();
 	ReadFileLexico();
 	ReadFileTokens();
 	ReadFilePalabrasReservadas();
 	AutomataLexico("", 0, 0);
-
-	system("pause");
+	PrintTable(1);
+	cout<<"\n\n";
+	PrintTable(0);
+	//system("pause");
+	return 0;
 }
 
 
@@ -160,4 +185,34 @@ void ReadFileTokens() {
 		}
 		archivo.close();
 	}
+}
+void PrintTableLines(int tokenS, int textoS, int lS, int cS){
+	cout<<"+";
+	for(int i = 0; i<tokenS; i++)
+		cout<<"-";
+	cout<<"+";
+	for(int i = 0; i<textoS; i++)
+		cout<<"-";
+	cout<<"+";
+	for(int i = 0; i<lS; i++)
+		cout<<"-";
+	cout<<"+";
+	for(int i = 0; i<cS; i++)
+		cout<<"-";
+	cout<<"+\n";
+}
+void PrintTable(int op){ // 0 para todos los elementos, 1 para solo los identificadores
+	int tokenS=25,textoS=25,lS=6,cS=6;
+	vector<simbol> Elements;
+	if(op == 0)
+		Elements = AllTokens;
+	else 
+		Elements = identificadores;
+	PrintTableLines(tokenS,textoS,lS,cS);
+	cout<<"|"<<right<<setw(tokenS)<<"TIPO"<<"|"<<setw(textoS)<<"TOKEN"<<"|"<<setw(lS)<<"LINE"<<"|"<<setw(cS)<<"COLUMN"<<"|\n";
+	for(simbol &item : Elements){
+		PrintTableLines(tokenS,textoS,lS,cS);
+		cout<<"|"<<right<<setw(tokenS)<<item.token<<"|"<<setw(textoS)<<item.texto<<"|"<<setw(lS)<<item.line<<"|"<<setw(cS)<<item.column<<"|\n";
+	}
+	PrintTableLines(tokenS,textoS,lS,cS);
 }

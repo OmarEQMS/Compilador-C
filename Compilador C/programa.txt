@@ -33,5 +33,5 @@ void Combinations(int &numComb, int Sum, int actualTerm, int actualOp, int num, 
 			cout << pruebas << endl;
 		}
 	}
-
+	
 }  
