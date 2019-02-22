@@ -15,9 +15,9 @@ void ReadFilePalabrasReservadas();
 struct TablaToken { public: string token; int estado; };
 struct Identificadores { 
 public: 
-	string identificador; string tipo; int linea; int columna; 
+	string identificador; string tipo; int linea; int columna; int indexCodigo;
 	Identificadores() {}
-	Identificadores(string id, string tip, int lin, int col) { identificador = id; tipo = tip; linea = lin; columna = col; }
+	Identificadores(string id, string tip, int lin, int col, int index) { identificador = id; tipo = tip; linea = lin; columna = col; indexCodigo = index; }
 };
 struct CodigoToken { 
 public: 
@@ -76,24 +76,34 @@ int ValidarEstadoToken(string texto, int estado, int exitStatus) { //Regreso el 
 				}
 			}
 		}
-		if (token != -1) cout << tablaTokens[token].token << ": " << texto << endl;
+		//if (token != -1) cout << tablaTokens[token].token << ": " << texto << endl;
 	}	
 	return token;
 }
 
 ResultAutomata AutomataLexico(string texto, int longitud, int index, int estado, int master_slave, int linea, int columna) { //Regresa la longitud del texto
 	int* estados = SiguienteEstado(estado, programa[index]);
-	if (estados[0] == -2) {
-		cout << "ERROR: Caracter no valido: " << programa[index] << endl;
-		longitud = longitud + 1;
-		columna = columna + 1;
-	}
 	vector<ResultAutomata> resultados;
+	if (estados[0] == -2) {
+		cout << "ERROR Caracter no valido en " << linea << ", " << columna << endl;
+		resultados.push_back(*(new ResultAutomata(0, longitud + 1, "", linea, columna + 1, false))); //caracter invalido, pero resultado al final del caracter (\n si es valido)
+	}
 	for (int k = 0; k < estados[0]; k++) {
-		if (estados[k + 2] < 0) {			//Si el estado es menor a 0
+		if (estados[k + 2] <= 0) {			//Si el estado es menor o iguala 0
 			int token = ValidarEstadoToken(texto, estado, estados[k + 2]);
 			if (token != -1) {				//encontre un token, lo guardo en resultados
 				resultados.push_back(*(new ResultAutomata(token, longitud, texto, linea, columna, true)));
+			} else if(estados[k + 2]==0){ //Espacios o saltos de linea, avanzo sin detectar, no se recomienda tener un stack
+				int sigLong = longitud + 1;
+				int sigCol = (programa[index] == '\n') ? 0 : columna + 1;
+				int sigLin = (programa[index] == '\n') ? linea + 1 : linea;
+				resultados.push_back(*(new ResultAutomata(0, sigLong, "", sigLin, sigCol, false))); //Genero resultado
+			} else { //De seguro hubo un error
+				cout << "ERROR Detectado en " << linea << ", " << columna << endl;
+				int sigLong = longitud + 1;
+				int sigCol = (programa[index] == '\n') ? 0 : columna + 1;
+				int sigLin = (programa[index] == '\n') ? linea + 1 : linea;
+				resultados.push_back(*(new ResultAutomata(0, sigLong, "", sigLin, sigCol, false))); //Genero resultado
 			}
 		}else {										//Si no es menor a 0, me sigo moviendo
 			int sigIndex = index + 1;
@@ -103,14 +113,11 @@ ResultAutomata AutomataLexico(string texto, int longitud, int index, int estado,
 			if (k >= estados[1]) { //Significa que estoy haciendo cerradura epsilon
 				sigIndex = index; sigLong = longitud; sigCol = columna; sigLin = linea;
 			}
-			if (estados[k + 2] == 0) {				//Si regreso a 0 vuelvo a comenzar				
-				resultados.push_back(AutomataLexico("", sigLong, sigIndex, estados[k + 2], 1, sigLin, sigCol));
-			} else {
-				resultados.push_back(AutomataLexico(texto + programa[index], sigLong, sigIndex, estados[k + 2], 1, sigLin, sigCol));
-			}
+			//Sigo recorriendo
+			resultados.push_back(AutomataLexico(texto + programa[index], sigLong, sigIndex, estados[k + 2], 1, sigLin, sigCol));
 		}
 	}
-	//Obtengo el token mas largo
+	//Obtengo el token mas largo de resultados
 	int mejor = -1;
 	for (int i = 0; i < resultados.size(); i++) {
 		if (resultados[i].exito) {
@@ -121,30 +128,22 @@ ResultAutomata AutomataLexico(string texto, int longitud, int index, int estado,
 			}
 		}
 	}
-	if (mejor == -1) {
-		resultados.push_back(*(new ResultAutomata(0, longitud, "", linea, columna, false)));
-	}
+	if (mejor == -1) { mejor = 0; } //Si no hay exito, tomo el primero (caracter invalido o espacio/salto/tab) //Caracter invalido o espacio o linea
 
 	//Si soy master, guardo el token y sigo, si soy slave, retorno el token
 	if (master_slave == 0) {
-		if (mejor != -1) {
+		if (resultados[mejor].exito) {
 			codigoTokenizado.push_back(*(new CodigoToken(resultados[mejor].token, resultados[mejor].texto, linea, columna)));
 			if (tablaTokens[resultados[mejor].token].token == "IDENTIFICADOR") { //Si es identificador lo agrego a la tabla
-				tablaIdentificadores.push_back(*(new Identificadores(resultados[mejor].texto, "", linea, columna)));
+				tablaIdentificadores.push_back(*(new Identificadores(resultados[mejor].texto, "", linea, columna, codigoTokenizado.size()-1)));
 			}
 		}
-		mejor = 0; //para la longitud
 		if (programa[index + resultados[mejor].longitud] != '\0') { //Nulo siempre da -1 en automata, tengo que checar el final de el token actual
 			AutomataLexico("", 0, index + resultados[mejor].longitud, 0, 0, resultados[mejor].linea, resultados[mejor].columna);
 		}
 		return *(new ResultAutomata()); //Realmente esto no importa
 	} else {
-		if (mejor == -1) {
-			cout << longitud << endl;
-			return *(new ResultAutomata(0, longitud, "", linea, columna, false));
-		} else {
-			return resultados[mejor];
-		}		
+		return resultados[mejor];
 	}
 	
 }
@@ -157,10 +156,17 @@ void main() {
 
 	AutomataLexico("", 0, 0, 0, 0, 0, 0);
 
+	cout << endl << "Codigo Tokenizado: " << endl;
 	for (int i = 0; i < codigoTokenizado.size(); i++) {
-		cout << tablaTokens[codigoTokenizado[i].token].token << " (" << codigoTokenizado[i].linea << ", " << codigoTokenizado[i].columna << "): " << codigoTokenizado[i].texto << endl;
+		cout << "   " << tablaTokens[codigoTokenizado[i].token].token << " (" << codigoTokenizado[i].linea << ", " << codigoTokenizado[i].columna << "): " << codigoTokenizado[i].texto << endl;
 	}
+	cout << endl;
 
+	cout << "Tabla de tablaIdentificadores" << endl;
+	for (int i = 0; i < tablaIdentificadores.size(); i++) {
+		cout << "   " << tablaIdentificadores[i].identificador << " (" << tablaIdentificadores[i].linea << ", " << tablaIdentificadores[i].columna << ")(" << tablaIdentificadores[i].indexCodigo << "): " << tablaIdentificadores[i].tipo << endl;
+	}
+	cout << endl;
 
 	system("pause");
 }
