@@ -100,10 +100,7 @@ ResultAutomata AutomataLexico(string texto, int longitud, int index, int estado,
 				resultados.push_back(*(new ResultAutomata(0, sigLong, "", sigLin, sigCol, false))); //Genero resultado
 			} else { //De seguro hubo un error
 				cout << "ERROR Detectado en " << linea << ", " << columna << endl;
-				int sigLong = longitud + 1;
-				int sigCol = (programa[index] == '\n') ? 0 : columna + 1;
-				int sigLin = (programa[index] == '\n') ? linea + 1 : linea;
-				resultados.push_back(*(new ResultAutomata(0, sigLong, "", sigLin, sigCol, false))); //Genero resultado
+				resultados.push_back(*(new ResultAutomata(0, longitud, "", linea, columna, false))); //Genero resultado
 			}
 		}else {										//Si no es menor a 0, me sigo moviendo
 			int sigIndex = index + 1;
@@ -158,13 +155,13 @@ void main() {
 
 	cout << endl << "Codigo Tokenizado: " << endl;
 	for (int i = 0; i < codigoTokenizado.size(); i++) {
-		cout << "   " << tablaTokens[codigoTokenizado[i].token].token << " (" << codigoTokenizado[i].linea << ", " << codigoTokenizado[i].columna << "): " << codigoTokenizado[i].texto << endl;
+		cout << "  [" << i << "] " << tablaTokens[codigoTokenizado[i].token].token << " (" << codigoTokenizado[i].linea << ", " << codigoTokenizado[i].columna << "): " << codigoTokenizado[i].texto << endl;
 	}
 	cout << endl;
 
 	cout << "Tabla de tablaIdentificadores" << endl;
 	for (int i = 0; i < tablaIdentificadores.size(); i++) {
-		cout << "   " << tablaIdentificadores[i].identificador << " (" << tablaIdentificadores[i].linea << ", " << tablaIdentificadores[i].columna << ")(" << tablaIdentificadores[i].indexCodigo << "): " << tablaIdentificadores[i].tipo << endl;
+		cout << "  [" << i << "] " << tablaIdentificadores[i].identificador << " (" << tablaIdentificadores[i].linea << ", " << tablaIdentificadores[i].columna << ")(" << tablaIdentificadores[i].indexCodigo << "): " << tablaIdentificadores[i].tipo << endl;
 	}
 	cout << endl;
 
