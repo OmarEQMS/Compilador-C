@@ -1,5 +1,5 @@
 main(){
-	printf("Hola %s", "Mundo");
+	printfá("Hola %s", "Mundo");
 	1 == 1 ? 2 : 3;
 	char arr[] = {'a\'','b','c'};
 }

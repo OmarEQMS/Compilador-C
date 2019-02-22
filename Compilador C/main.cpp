@@ -13,8 +13,24 @@ void ReadFilePrograma();
 void ReadFilePalabrasReservadas();
 
 struct TablaToken { public: string token; int estado; };
-struct Identificadores { public: string identificador; string tipo; int linea; int columna; };
-struct CodigoToken { public: string token; string texto; int linea; int columna; };
+struct Identificadores { 
+public: 
+	string identificador; string tipo; int linea; int columna; 
+	Identificadores() {}
+	Identificadores(string id, string tip, int lin, int col) { identificador = id; tipo = tip; linea = lin; columna = col; }
+};
+struct CodigoToken { 
+public: 
+	int token; string texto; int linea; int columna; 
+	CodigoToken() {}
+	CodigoToken(int tok, string tex, int lin, int col) { token = tok; texto = tex; linea = lin; columna = col; }
+};
+struct ResultAutomata { 
+public: 
+	int longitud; int token; string texto; int linea; int columna; bool exito;
+	ResultAutomata() {} 
+	ResultAutomata(int tok, int lon, string tex, int lin, int col, bool ex) { longitud = lon; token = tok; texto = tex; linea = lin; columna = col; exito = ex; }
+};
 
 vector<vector<vector<int>>> matrizLexico;
 vector<TablaToken> tablaTokens;
@@ -32,21 +48,22 @@ int* SiguienteEstado(int estadoActual, char caracter) {
 	int pila = (matrizLexico[estadoActual][carac]).size();
 	int pilaVacio = (matrizLexico[estadoActual][0]).size();
 	int pilaVacioValid = 0;
-	int* pilaEstados = new int[pila + pilaVacio + 1];
+	int* pilaEstados = new int[pila + pilaVacio + 2];
 	for (int i = 0; i < pila; i++) {
-		pilaEstados[i + 1] = matrizLexico[estadoActual][carac][i];
+		pilaEstados[i + 2] = matrizLexico[estadoActual][carac][i];
 	}
 	for (int i = 0; i < pilaVacio; i++) {
-		if (matrizLexico[estadoActual][0][i] != -1) {
-			pilaEstados[pilaVacioValid + pila + 1] = matrizLexico[estadoActual][0][i];
+		if (matrizLexico[estadoActual][0][i] != -1) { //Me voy a vacio solo si es estado bien
+			pilaEstados[pilaVacioValid + pila + 2] = matrizLexico[estadoActual][0][i];
 			pilaVacioValid++;
 		}
 	}
 	pilaEstados[0] = pila + pilaVacioValid;
+	pilaEstados[1] = pila; //Para poder ditingir cuales son epsilon y cuales no
 	return pilaEstados;
 }
 
-bool ValidarEstadoToken(string texto, int estado, int exitStatus) {
+int ValidarEstadoToken(string texto, int estado, int exitStatus) { //Regreso el token
 	int token = -1;
 	if (exitStatus == -1) {
 		for (int i = 0; i < tablaTokens.size(); i++) {
@@ -61,27 +78,75 @@ bool ValidarEstadoToken(string texto, int estado, int exitStatus) {
 		}
 		if (token != -1) cout << tablaTokens[token].token << ": " << texto << endl;
 	}	
-	return (token!=-1);
+	return token;
 }
 
-void AutomataLexico(string texto, int index, int estado) {
+ResultAutomata AutomataLexico(string texto, int longitud, int index, int estado, int master_slave, int linea, int columna) { //Regresa la longitud del texto
 	int* estados = SiguienteEstado(estado, programa[index]);
 	if (estados[0] == -2) {
 		cout << "ERROR: Caracter no valido: " << programa[index] << endl;
+		longitud = longitud + 1;
+		columna = columna + 1;
 	}
+	vector<ResultAutomata> resultados;
 	for (int k = 0; k < estados[0]; k++) {
-		if (estados[k + 1] < 0) {			//Si el estado es menor a 0, verifico estado final y comienzo desde ahi
-			if (ValidarEstadoToken(texto, estado, estados[k + 1])) {
-				if(programa[index] != '\0') AutomataLexico("", index, 0);
+		if (estados[k + 2] < 0) {			//Si el estado es menor a 0
+			int token = ValidarEstadoToken(texto, estado, estados[k + 2]);
+			if (token != -1) {				//encontre un token, lo guardo en resultados
+				resultados.push_back(*(new ResultAutomata(token, longitud, texto, linea, columna, true)));
 			}
 		}else {										//Si no es menor a 0, me sigo moviendo
-			if (estados[k + 1] == 0) {				//Si regreso a 0 vuelvo a comenzar
-				AutomataLexico("", index + 1, estados[k + 1]);
+			int sigIndex = index + 1;
+			int sigLong = longitud + 1;
+			int sigCol = (programa[index] == '\n') ? 0 : columna + 1;
+			int sigLin = (programa[index] == '\n') ? linea + 1 : linea;
+			if (k >= estados[1]) { //Significa que estoy haciendo cerradura epsilon
+				sigIndex = index; sigLong = longitud; sigCol = columna; sigLin = linea;
+			}
+			if (estados[k + 2] == 0) {				//Si regreso a 0 vuelvo a comenzar				
+				resultados.push_back(AutomataLexico("", sigLong, sigIndex, estados[k + 2], 1, sigLin, sigCol));
 			} else {
-				AutomataLexico(texto + programa[index], index + 1, estados[k + 1]);
+				resultados.push_back(AutomataLexico(texto + programa[index], sigLong, sigIndex, estados[k + 2], 1, sigLin, sigCol));
 			}
 		}
 	}
+	//Obtengo el token mas largo
+	int mejor = -1;
+	for (int i = 0; i < resultados.size(); i++) {
+		if (resultados[i].exito) {
+			if(mejor!=-1){
+				if (resultados[i].longitud > resultados[mejor].longitud) { mejor = i; }
+			} else {
+				mejor = i;
+			}
+		}
+	}
+	if (mejor == -1) {
+		resultados.push_back(*(new ResultAutomata(0, longitud, "", linea, columna, false)));
+	}
+
+	//Si soy master, guardo el token y sigo, si soy slave, retorno el token
+	if (master_slave == 0) {
+		if (mejor != -1) {
+			codigoTokenizado.push_back(*(new CodigoToken(resultados[mejor].token, resultados[mejor].texto, linea, columna)));
+			if (tablaTokens[resultados[mejor].token].token == "IDENTIFICADOR") { //Si es identificador lo agrego a la tabla
+				tablaIdentificadores.push_back(*(new Identificadores(resultados[mejor].texto, "", linea, columna)));
+			}
+		}
+		mejor = 0; //para la longitud
+		if (programa[index + resultados[mejor].longitud] != '\0') { //Nulo siempre da -1 en automata, tengo que checar el final de el token actual
+			AutomataLexico("", 0, index + resultados[mejor].longitud, 0, 0, resultados[mejor].linea, resultados[mejor].columna);
+		}
+		return *(new ResultAutomata()); //Realmente esto no importa
+	} else {
+		if (mejor == -1) {
+			cout << longitud << endl;
+			return *(new ResultAutomata(0, longitud, "", linea, columna, false));
+		} else {
+			return resultados[mejor];
+		}		
+	}
+	
 }
 
 void main() {
@@ -90,7 +155,12 @@ void main() {
 	ReadFileTokens();
 	ReadFilePalabrasReservadas();
 
-	AutomataLexico("", 0, 0);
+	AutomataLexico("", 0, 0, 0, 0, 0, 0);
+
+	for (int i = 0; i < codigoTokenizado.size(); i++) {
+		cout << tablaTokens[codigoTokenizado[i].token].token << " (" << codigoTokenizado[i].linea << ", " << codigoTokenizado[i].columna << "): " << codigoTokenizado[i].texto << endl;
+	}
+
 
 	system("pause");
 }
